@@ -340,3 +340,110 @@ PHASE 10 Commerce experiments
 > **레시피를 저장하는 앱이 아니라, 다른 사람의 레시피를 나의 계량·입맛·목표·조리 습관에 맞춰 계속 진화시키는 개인 Cooking System.**
 
 AI 자체를 상품으로 파는 것이 아니라, 사용자의 누적된 요리 맥락과 deterministic transformation을 결합한 개인화 경험을 상품으로 만든다.
+
+
+## 14. On-device AI strategy
+
+장기적으로 한끼록의 기본 음성 기능은 **On-device First + Cloud Fallback** 구조를 우선 검토한다.
+
+On-device란 한끼록 서버나 외부 AI API가 아니라 사용자의 스마트폰 내부 CPU/GPU/NPU에서 작은 AI 모델과 parser를 직접 실행하는 방식이다.
+
+목표 구조:
+
+```text
+사용자 음성
+  ↓
+[On-device]
+음성 감지 / STT / command parsing
+  ↓
+명확한 명령
+  ├─ 다음 / 이전
+  ├─ 타이머
+  ├─ 단위/수량 인식
+  └─ 간단한 ingredient modification
+  ↓
+deterministic Recipe/Transformation engine
+
+애매하거나 복잡한 자연어
+  ↓
+Cloud AI fallback
+  ↓
+structured transformation proposal
+  ↓
+deterministic validation/application
+```
+
+### 기대 효과
+
+- 사용자 증가에 따른 중앙 GPU/STT 서버 부하 증가폭 감소
+- API 및 inference 운영비 절감
+- 짧은 명령의 latency 감소
+- 기본 기능의 offline 동작 가능성
+- 음성 원본을 서버로 보내지 않는 privacy-friendly UX 가능
+- 사용자 수가 증가하면 각 사용자 기기의 연산 자원을 활용하므로 중앙 inference bottleneck을 줄일 수 있음
+
+### Free / Plus와의 연결
+
+**Free 후보**
+- push-to-talk
+- on-device STT/command
+- 다음/이전/완료
+- 타이머
+- 간단한 ingredient quantity 수정
+- offline-capable basic cooking commands
+
+**Plus 후보**
+- hands-free / continuous voice
+- 복합 자연어 이해
+- Taste Profile 기반 조정
+- 상황형 Cooking Assistant
+- cloud LLM fallback의 높은 사용량
+
+비용이 큰 기능을 구독 가치와 연결하되, 기본 Cooking Mode가 네트워크/API 장애 때문에 사용 불가능해지지 않는 것을 목표로 한다.
+
+### Engineering caution
+
+On-device는 무료 인프라가 아니다. 다음 trade-off를 실제 기기에서 측정해야 한다.
+
+- 앱/모델 다운로드 크기
+- RAM 사용량
+- 배터리
+- 발열
+- inference latency
+- iOS/Android 구현 차이
+- 구형 기기 성능
+- 한국어 요리 표현 인식 정확도
+
+따라서 초기 MVP부터 모든 AI를 on-device화하지 않는다.
+
+개발 단계 가설:
+
+```text
+PoC
+개발 PC에서 Korean STT + parser 검증
+  ↓
+MVP/Beta
+Cloud STT + deterministic parser 중심으로 빠르게 검증
+  ↓
+실사용 데이터/명령 패턴 확보
+  ↓
+자주 쓰는 command부터 on-device 이전
+  ↓
+Cloud fallback 최적화
+```
+
+핵심 원칙:
+
+> **가능한 요청은 가장 저렴하고 빠른 계층에서 해결하고, 복잡성이 높아질 때만 상위 AI 계층으로 escalation한다.**
+
+```text
+On-device command
+      ↓ 필요 시
+Deterministic engine
+      ↓ 필요 시
+Small/local model
+      ↓ 필요 시
+Cloud high-capability LLM
+```
+
+이 구조를 한끼록의 장기 AI inference architecture 후보로 유지한다.
